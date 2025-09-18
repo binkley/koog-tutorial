@@ -6,3 +6,18 @@ align="right" width="10%" height="auto"/>
 # Koog Tutorial
 
 Kick the tires on Koog.
+
+## Setup
+
+Ensure a `GEMINI_API_KEY` from Google is exported in your shell environment.
+
+## Try it
+
+From the project root, run:
+
+```shell
+./gradlew installDist
+./build/install/koog-tutorial/bin/koog-tutorial
+```
+
+Knock yourself out with prompts.

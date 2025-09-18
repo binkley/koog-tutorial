@@ -2,5 +2,4 @@
 koog = "0.4.1"
 
 [libraries]
-koog-core = { group = "dev.kason", name = "koog-core", version.ref = "koog" }
-koog-gemini = { group = "dev.kason", name = "koog-gemini", version.ref = "koog" }
+koog = { group = "ai.koog", name = "koog-agents", version.ref = "koog" }
