@@ -1,5 +1,7 @@
 [versions]
+jline = "3.30.6"
 koog = "0.4.1"
 
 [libraries]
+jline = { group = "org.jline", name = "jline", version.ref = "jline" }
 koog = { group = "ai.koog", name = "koog-agents", version.ref = "koog" }

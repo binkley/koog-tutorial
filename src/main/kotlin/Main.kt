@@ -1,6 +1,9 @@
 import ai.koog.agents.core.agent.AIAgent
 import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Flash
 import ai.koog.prompt.executor.llms.all.simpleGoogleAIExecutor
+import org.jline.reader.EndOfFileException
+import org.jline.reader.LineReaderBuilder
+import org.jline.terminal.TerminalBuilder
 
 // 'suspend' is needed because AI calls are asynchronous network requests
 suspend fun main() {
@@ -23,21 +26,37 @@ suspend fun main() {
         systemPrompt = "You are a helpful and friendly assistant named KoogBot."
     )
 
-    // 3. Start an interactive chat loop.
-    while (true) {
-        print("> ") // Prompt for user input
-        val userInput = readlnOrNull() ?: break // Read a line from the console
+    // 3. Use a _nice_ command line prompt.
 
-        if (userInput.equals("exit", ignoreCase = true)) {
-            println("Goodbye! 👋")
-            break
+    val terminal = TerminalBuilder.builder()
+        .system(true)
+        .build()
+
+    // 4. Start an interactive chat loop.
+
+    terminal.use {
+        val reader = LineReaderBuilder.builder()
+            .terminal(terminal)
+            .build()
+
+        while (true) {
+            val userInput = try {
+                reader.readLine("> ") ?: break
+            } catch (_: EndOfFileException) {
+                "exit"
+            }.trim()
+
+            if (userInput.equals("exit", ignoreCase = true)) {
+                terminal.writer().println("Goodbye! 👋")
+                break
+            }
+
+            // 4. Send the user's message to the agent and get a response.
+            val response = agent.run(userInput)
+
+            // 5. Print the agent's response content.
+            terminal.writer().println("🤖: $response")
         }
-
-        // 4. Send the user's message to the agent and get a response.
-        val response = agent.run(userInput)
-
-        // 5. Print the agent's response content.
-        println("🤖: $response")
     }
 
     // Clean up the client's resources before exiting

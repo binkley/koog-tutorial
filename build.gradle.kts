@@ -8,6 +8,7 @@ repositories {
 }
 
 dependencies {
+    implementation(libs.jline)
     implementation(libs.koog)
 }
 
