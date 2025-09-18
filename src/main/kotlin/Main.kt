@@ -1,6 +1,7 @@
 import ai.koog.agents.core.agent.AIAgent
 import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Flash
 import ai.koog.prompt.executor.llms.all.simpleGoogleAIExecutor
+import org.fusesource.jansi.Ansi.ansi
 import org.jline.reader.EndOfFileException
 import org.jline.reader.LineReaderBuilder
 import org.jline.terminal.TerminalBuilder
@@ -41,13 +42,13 @@ suspend fun main() {
 
         while (true) {
             val userInput = try {
-                reader.readLine("> ") ?: break
+                reader.readLine("> ".iSay) ?: break
             } catch (_: EndOfFileException) {
                 "exit"
             }.trim()
 
             if (userInput.equals("exit", ignoreCase = true)) {
-                terminal.writer().println("Goodbye! 👋")
+                terminal.writer().println("Goodbye! 👋".iSay)
                 break
             }
 
@@ -55,10 +56,16 @@ suspend fun main() {
             val response = agent.run(userInput)
 
             // 5. Print the agent's response content.
-            terminal.writer().println("🤖: $response")
+            terminal.writer().println("🤖: $response".aiSays)
         }
     }
 
     // Clean up the client's resources before exiting
     agent.close()
 }
+
+val String.iSay
+    get() = ansi().fgBrightDefault().bold().a(this).reset().toString()
+
+val String.aiSays
+    get() = ansi().fgYellow().a(this).reset().toString()
