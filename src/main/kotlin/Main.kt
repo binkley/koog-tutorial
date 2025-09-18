@@ -6,66 +6,66 @@ import org.jline.reader.EndOfFileException
 import org.jline.reader.LineReaderBuilder
 import org.jline.terminal.TerminalBuilder
 
-// 'suspend' is needed because AI calls are asynchronous network requests
+/*
+ * This is a good example how to learn more on how the bot works, but it also
+ * takes a more time and computation from it.
+private const val SYSTEM_PROMPT =
+    "You are a helpful and friendly assistant named KoogBot. You explain what you are doing so the user can learn how to make better prompts."
+*/
+private const val SYSTEM_PROMPT =
+    "You are a helpful and friendly assistant named KoogBot."
+
 suspend fun main() {
-    println("🤖 Koog Gemini agent is ready. Type 'exit' to quit.")
+    // Koog and Gemini like to be loquacious -- just show concerns and errors
+    System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "WARN")
 
-    // 1. Initialize the Gemini client.
-    // Koog automatically looks for the GEMINI_API_KEY environment variable.
-
-    val gemini = simpleGoogleAIExecutor(
-        System.getenv("GEMINI_API_KEY")
-            ?: throw RuntimeException("Missing GEMINI_API_KEY environment variable")
-    )
-
-    // 2. Create an agent with a system prompt.
-    // This gives the AI its core instructions or personality.
-
+    val apiKey = (System.getenv("GEMINI_API_KEY")
+        ?: throw RuntimeException("Missing GEMINI_API_KEY environment variable"))
+    // TODO: How to check the API key is valid before saying we are ready?
+    val gemini = simpleGoogleAIExecutor(apiKey)
     val agent = AIAgent(
         executor = gemini,
         llmModel = Gemini2_5Flash,
-        systemPrompt = "You are a helpful and friendly assistant named KoogBot."
+        systemPrompt = SYSTEM_PROMPT
     )
-
-    // 3. Use a _nice_ command line prompt.
 
     val terminal = TerminalBuilder.builder()
         .system(true)
         .build()
 
-    // 4. Start an interactive chat loop.
-
+    // TODO: Nicer code. Refactor scope function.
     terminal.use {
-        val reader = LineReaderBuilder.builder()
-            .terminal(terminal)
-            .build()
+        terminal.writer().run {
+            println("🤖 Koog Gemini agent is ready. Enter 'exit' to quit.".iSay)
 
-        while (true) {
-            val userInput = try {
-                reader.readLine("> ".iSay) ?: break
-            } catch (_: EndOfFileException) {
-                "exit"
-            }.trim()
+            val reader = LineReaderBuilder.builder()
+                .terminal(terminal)
+                .build()
 
-            if (userInput.equals("exit", ignoreCase = true)) {
-                terminal.writer().println("Goodbye! 👋".iSay)
-                break
+            while (true) {
+                val userInput = try {
+                    reader.readLine("> ".iSay) ?: break
+                } catch (_: EndOfFileException) {
+                    "exit"
+                }.trim()
+
+                if (userInput.equals("exit", ignoreCase = true)) {
+                    println("Goodbye! 👋".iSay)
+                    break
+                }
+
+                val response = agent.run(userInput)
+
+                println("🤖: $response".aiSays)
             }
-
-            // 4. Send the user's message to the agent and get a response.
-            val response = agent.run(userInput)
-
-            // 5. Print the agent's response content.
-            terminal.writer().println("🤖: $response".aiSays)
         }
     }
 
-    // Clean up the client's resources before exiting
     agent.close()
 }
 
 val String.iSay
-    get() = ansi().fgBrightDefault().bold().a(this).reset().toString()
+    get() = ansi().fgBrightGreen().bold().a(this).reset().toString()
 
 val String.aiSays
     get() = ansi().fgYellow().a(this).reset().toString()
