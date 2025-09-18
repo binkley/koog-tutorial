@@ -2,8 +2,10 @@
 jansi = "2.4.2"
 jline = "3.30.6"
 koog = "0.4.1"
+slf4j = "2.0.17"
 
 [libraries]
 jansi = { group = "org.fusesource.jansi", name = "jansi", version.ref = "jansi" }
 jline = { group = "org.jline", name = "jline", version.ref = "jline" }
 koog = { group = "ai.koog", name = "koog-agents", version.ref = "koog" }
+slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version.ref = "slf4j" }

@@ -11,6 +11,7 @@ dependencies {
     implementation(libs.jansi)
     implementation(libs.jline)
     implementation(libs.koog)
+    runtimeOnly(libs.slf4j.simple)
 }
 
 application {
