@@ -1,6 +1,10 @@
 import ai.koog.agents.core.agent.AIAgent
 import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Flash
 import ai.koog.prompt.executor.llms.all.simpleGoogleAIExecutor
+import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.PrintMessage
+import com.github.ajalt.clikt.core.main
+import kotlinx.coroutines.runBlocking
 import org.fusesource.jansi.Ansi.ansi
 import org.jline.reader.EndOfFileException
 import org.jline.reader.LineReaderBuilder
@@ -15,12 +19,25 @@ private const val SYSTEM_PROMPT =
 private const val SYSTEM_PROMPT =
     "You are a helpful and friendly assistant named KoogBot."
 
-suspend fun main() {
+// TODO: ADD COMMAND LINE OPTIONS
+// TODO: Consider custom help so we can print the 1-line summary
+// private const val DESCRIPTION = "A simple chat bot powered by Koog and Gemini."
+
+object KoogChat : CliktCommand("kai") {
+    override fun run() = runBlocking { bob() }
+}
+
+fun main(args: Array<String>) = KoogChat.main(args)
+suspend fun bob() {
     // Koog and Gemini like to be loquacious -- just show concerns and errors
     System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "WARN")
 
     val apiKey = (System.getenv("GEMINI_API_KEY")
-        ?: throw RuntimeException("Missing GEMINI_API_KEY environment variable"))
+        ?: throw PrintMessage(
+            "kai: Missing GEMINI_API_KEY environment variable".error,
+            2,
+            true
+        ))
 
     // TODO: How to check the API key is valid before saying we are ready?
     val gemini = simpleGoogleAIExecutor(apiKey)
@@ -64,6 +81,9 @@ suspend fun main() {
 
     agent.close()
 }
+
+val String.error
+    get() = ansi().fgBrightRed().bold().a(this).reset().toString()
 
 val String.iSay
     get() = ansi().fgBrightGreen().bold().a(this).reset().toString()
