@@ -17,17 +17,17 @@ import org.jline.terminal.TerminalBuilder
  * This is a good example how to learn more on how the bot works, but it also
  * takes a more time and computation from it.
 private const val SYSTEM_PROMPT =
-    "You are a helpful and friendly assistant named KoogBot. You explain what you are doing so the user can learn how to make better prompts."
+    "You are a helpful and friendly assistant named Kai. You explain what you are doing so the user can learn how to make better prompts."
 */
 private const val DEFAULT_SYSTEM_PROMPT =
-    "You are a helpful and friendly assistant named KoogBot."
+    "You are a helpful and friendly assistant named Kai."
 
 // TODO: ADD COMMAND LINE OPTIONS
 // TODO: Consider custom help so we can print the 1-line summary
 // private const val DESCRIPTION = "A simple chat bot powered by Koog and Gemini."
 // TODO: Show option default values in help
 
-object KoogChat : CliktCommand("kai") {
+object Kai : CliktCommand("kai") {
     val systemPrompt by option(
         help = "Set the system prompt",
         names = arrayOf("-S", "--system-prompt")
@@ -41,13 +41,14 @@ object KoogChat : CliktCommand("kai") {
     }
 }
 
-fun main(args: Array<String>) = KoogChat.main(args)
+fun main(args: Array<String>) = Kai.main(args)
 suspend fun run(model: LLModel, systemPrompt: String) {
     // Koog and Gemini like to be loquacious -- just show concerns and errors
     System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "WARN")
 
     // TODO: Trying out different models (which will have diff env vars)
     //   See SimplePromptExecutors in Koog, and map option name to executor
+    // TODO: How to check the API key is valid before saying we are ready?
     val apiKey = (System.getenv("GEMINI_API_KEY")
         ?: throw PrintMessage(
             "kai: Missing GEMINI_API_KEY environment variable".error,
@@ -55,10 +56,8 @@ suspend fun run(model: LLModel, systemPrompt: String) {
             true
         ))
 
-    // TODO: How to check the API key is valid before saying we are ready?
-    val gemini = simpleGoogleAIExecutor(apiKey)
     val agent = AIAgent(
-        executor = gemini,
+        executor = simpleGoogleAIExecutor(apiKey),
         llmModel = model,
         systemPrompt = systemPrompt
     )
@@ -70,7 +69,7 @@ suspend fun run(model: LLModel, systemPrompt: String) {
     // TODO: Nicer code. Refactor scope function.
     terminal.use {
         terminal.writer().run {
-            println("🤖 Koog Gemini agent is ready. Enter 'exit' to quit.".iSay)
+            println("🤖 Kai is ready. Enter 'exit' to quit.".iSay)
 
             val reader = LineReaderBuilder.builder()
                 .terminal(terminal)
