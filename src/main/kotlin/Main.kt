@@ -29,6 +29,9 @@ suspend fun main() {
 
     val apiKey = (System.getenv("GEMINI_API_KEY")
         ?: throw RuntimeException("Missing GEMINI_API_KEY environment variable"))
+
+
+    
     // TODO: How to check the API key is valid before saying we are ready?
     val gemini = simpleGoogleAIExecutor(apiKey)
     val agent = AIAgent(

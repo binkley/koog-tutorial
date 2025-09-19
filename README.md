@@ -11,6 +11,11 @@ Kick the tires on Koog.
 
 Ensure a `GEMINI_API_KEY` from Google is exported in your shell environment.
 
+You API key reflects the rights your Google account has when you generate the
+key. For example, this project uses the "Gemini Flash" 2.5 model. To use the
+"Pro" model, you should generate an API key from your account if you have paid
+for that model.
+
 ## Try it
 
 From the project root, run:
