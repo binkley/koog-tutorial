@@ -1,5 +1,6 @@
 import ai.koog.agents.core.agent.AIAgent
 import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Flash
+import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Pro
 import ai.koog.prompt.executor.llms.all.simpleGoogleAIExecutor
 import ai.koog.prompt.llm.LLModel
 import com.github.ajalt.clikt.core.CliktCommand
@@ -7,6 +8,7 @@ import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.main
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.mordant.markdown.Markdown
 import com.github.ajalt.mordant.rendering.TextColors
 import com.github.ajalt.mordant.rendering.TextStyle
@@ -30,21 +32,34 @@ private val DEFAULT_SYSTEM_PROMPT = """
 // TODO: Show option default values in help
 
 object Kai : CliktCommand("kai") {
+    val model by option(
+        "-M", "--model",
+        help = "Pick a Gemini model",
+    ).choice("flash", "pro")
+        .default("flash")
+
     val systemPrompt by option(
+        "-S", "--system-prompt",
         help = "Set the system prompt",
-        names = arrayOf("-S", "--system-prompt")
     ).default(DEFAULT_SYSTEM_PROMPT)
 
     override fun run() = runBlocking {
-        run(
-            model = Gemini2_5Flash,
-            systemPrompt = systemPrompt
-        )
+        // NOTE: Access the flag values only here -- if you cleverly move this
+        //   logic up, you'll get a JVM `java.lang.ExceptionInInitializerError`.
+        // TODO: When there are more models to consider, this becomes a factory
+        //   function that also handles needed env vars (such as API key).
+        val llmModel = when (model.lowercase()) {
+            "flash" -> Gemini2_5Flash
+            "pro" -> Gemini2_5Pro
+            else -> throw RuntimeException("BUG: Unknown Gemini model: $model")
+        }
+
+        run(llmModel, systemPrompt)
     }
 }
 
 fun main(args: Array<String>) = Kai.main(args)
-suspend fun run(model: LLModel, systemPrompt: String) {
+suspend fun run(llmModel: LLModel, systemPrompt: String) {
     // Koog and Gemini like to be loquacious -- just show concerns and errors
     System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "WARN")
 
@@ -60,7 +75,7 @@ suspend fun run(model: LLModel, systemPrompt: String) {
 
     val agent = AIAgent(
         executor = simpleGoogleAIExecutor(apiKey),
-        llmModel = model,
+        llmModel = llmModel,
         systemPrompt = systemPrompt
     )
 
