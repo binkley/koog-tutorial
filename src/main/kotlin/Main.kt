@@ -64,18 +64,18 @@ suspend fun run(model: LLModel, systemPrompt: String) {
         systemPrompt = systemPrompt
     )
 
-    val terminal = TerminalBuilder.builder()
+    val inputTerminal = TerminalBuilder.builder()
         .system(true)
         .build()
-    val markdownTerminal = Terminal()
+    val outputTerminal = Terminal()
 
     // TODO: Nicer code. Refactor scope function.
-    terminal.use {
-        terminal.writer().run {
+    inputTerminal.use {
+        inputTerminal.writer().run {
             println("🤖 Kai is ready. Enter 'exit' to quit.".iSay)
 
             val reader = LineReaderBuilder.builder()
-                .terminal(terminal)
+                .terminal(inputTerminal)
                 .build()
 
             while (true) {
@@ -91,7 +91,7 @@ suspend fun run(model: LLModel, systemPrompt: String) {
                 }
 
                 val response = agent.run(userInput)
-                markdownTerminal.println(Markdown("🤖: $response".aiSays))
+                outputTerminal.println(Markdown("🤖: $response".aiSays))
             }
         }
     }
