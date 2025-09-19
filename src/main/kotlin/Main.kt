@@ -3,8 +3,11 @@ import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Flash
 import ai.koog.prompt.executor.llms.all.simpleGoogleAIExecutor
 import org.fusesource.jansi.Ansi.ansi
 import org.jline.reader.EndOfFileException
+import org.jline.reader.Highlighter
 import org.jline.reader.LineReaderBuilder
 import org.jline.terminal.TerminalBuilder
+import org.jline.utils.AttributedString
+import org.jline.utils.AttributedStyle.DEFAULT
 
 /*
  * This is a good example how to learn more on how the bot works, but it also
@@ -14,6 +17,11 @@ private const val SYSTEM_PROMPT =
 */
 private const val SYSTEM_PROMPT =
     "You are a helpful and friendly assistant named KoogBot."
+
+fun userInput() =
+    Highlighter { _, buffer ->
+        AttributedString(buffer, DEFAULT.italic())
+    }
 
 suspend fun main() {
     // Koog and Gemini like to be loquacious -- just show concerns and errors
@@ -40,6 +48,7 @@ suspend fun main() {
 
             val reader = LineReaderBuilder.builder()
                 .terminal(terminal)
+                .highlighter(userInput())
                 .build()
 
             while (true) {
