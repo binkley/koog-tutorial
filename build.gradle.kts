@@ -9,6 +9,7 @@ repositories {
 
 dependencies {
     implementation(libs.clickt)
+    implementation(libs.mordant)
     implementation(libs.jansi)
     implementation(libs.jline)
     implementation(libs.koog)

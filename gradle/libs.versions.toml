@@ -3,6 +3,7 @@ clickt = "5.0.3"
 jansi = "2.4.2"
 jline = "3.30.6"
 koog = "0.4.1"
+mordant = "3.0.2"
 slf4j = "2.0.17"
 
 [libraries]
@@ -10,4 +11,5 @@ clickt = { group = "com.github.ajalt.clikt", name = "clikt", version.ref = "clic
 jansi = { group = "org.fusesource.jansi", name = "jansi", version.ref = "jansi" }
 jline = { group = "org.jline", name = "jline", version.ref = "jline" }
 koog = { group = "ai.koog", name = "koog-agents", version.ref = "koog" }
+mordant = { group = "com.github.ajalt.mordant", name = "mordant", version.ref = "mordant" }
 slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version.ref = "slf4j" }
