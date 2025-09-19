@@ -1,9 +1,12 @@
 import ai.koog.agents.core.agent.AIAgent
 import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Flash
 import ai.koog.prompt.executor.llms.all.simpleGoogleAIExecutor
+import ai.koog.prompt.llm.LLModel
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.main
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.option
 import kotlinx.coroutines.runBlocking
 import org.fusesource.jansi.Ansi.ansi
 import org.jline.reader.EndOfFileException
@@ -16,19 +19,30 @@ import org.jline.terminal.TerminalBuilder
 private const val SYSTEM_PROMPT =
     "You are a helpful and friendly assistant named KoogBot. You explain what you are doing so the user can learn how to make better prompts."
 */
-private const val SYSTEM_PROMPT =
+private const val DEFAULT_SYSTEM_PROMPT =
     "You are a helpful and friendly assistant named KoogBot."
 
 // TODO: ADD COMMAND LINE OPTIONS
 // TODO: Consider custom help so we can print the 1-line summary
 // private const val DESCRIPTION = "A simple chat bot powered by Koog and Gemini."
+// TODO: Show option default values in help
 
 object KoogChat : CliktCommand("kai") {
-    override fun run() = runBlocking { bob() }
+    val systemPrompt by option(
+        help = "Set the system prompt",
+        names = arrayOf("-S", "--system-prompt")
+    ).default(DEFAULT_SYSTEM_PROMPT)
+
+    override fun run() = runBlocking {
+        bob(
+            model = Gemini2_5Flash,
+            systemPrompt = systemPrompt
+        )
+    }
 }
 
 fun main(args: Array<String>) = KoogChat.main(args)
-suspend fun bob() {
+suspend fun bob(model: LLModel, systemPrompt: String) {
     // Koog and Gemini like to be loquacious -- just show concerns and errors
     System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "WARN")
 
@@ -43,8 +57,8 @@ suspend fun bob() {
     val gemini = simpleGoogleAIExecutor(apiKey)
     val agent = AIAgent(
         executor = gemini,
-        llmModel = Gemini2_5Flash,
-        systemPrompt = SYSTEM_PROMPT
+        llmModel = model,
+        systemPrompt = systemPrompt
     )
 
     val terminal = TerminalBuilder.builder()
