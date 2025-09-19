@@ -7,6 +7,8 @@ import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.main
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.mordant.markdown.Markdown
+import com.github.ajalt.mordant.terminal.Terminal
 import kotlinx.coroutines.runBlocking
 import org.fusesource.jansi.Ansi.ansi
 import org.jline.reader.EndOfFileException
@@ -65,6 +67,7 @@ suspend fun run(model: LLModel, systemPrompt: String) {
     val terminal = TerminalBuilder.builder()
         .system(true)
         .build()
+    val markdownTerminal = Terminal()
 
     // TODO: Nicer code. Refactor scope function.
     terminal.use {
@@ -88,8 +91,7 @@ suspend fun run(model: LLModel, systemPrompt: String) {
                 }
 
                 val response = agent.run(userInput)
-
-                println("🤖: $response".aiSays)
+                markdownTerminal.println(Markdown("🤖: $response".aiSays))
             }
         }
     }

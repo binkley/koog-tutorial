@@ -12,4 +12,5 @@ jansi = { group = "org.fusesource.jansi", name = "jansi", version.ref = "jansi" 
 jline = { group = "org.jline", name = "jline", version.ref = "jline" }
 koog = { group = "ai.koog", name = "koog-agents", version.ref = "koog" }
 mordant = { group = "com.github.ajalt.mordant", name = "mordant", version.ref = "mordant" }
+mordant-markdown = { group = "com.github.ajalt.mordant", name = "mordant-markdown", version.ref = "mordant" }
 slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version.ref = "slf4j" }
