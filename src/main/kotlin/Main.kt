@@ -34,7 +34,7 @@ object KoogChat : CliktCommand("kai") {
     ).default(DEFAULT_SYSTEM_PROMPT)
 
     override fun run() = runBlocking {
-        bob(
+        run(
             model = Gemini2_5Flash,
             systemPrompt = systemPrompt
         )
@@ -42,10 +42,12 @@ object KoogChat : CliktCommand("kai") {
 }
 
 fun main(args: Array<String>) = KoogChat.main(args)
-suspend fun bob(model: LLModel, systemPrompt: String) {
+suspend fun run(model: LLModel, systemPrompt: String) {
     // Koog and Gemini like to be loquacious -- just show concerns and errors
     System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "WARN")
 
+    // TODO: Trying out different models (which will have diff env vars)
+    //   See SimplePromptExecutors in Koog, and map option name to executor
     val apiKey = (System.getenv("GEMINI_API_KEY")
         ?: throw PrintMessage(
             "kai: Missing GEMINI_API_KEY environment variable".error,
