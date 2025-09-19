@@ -8,6 +8,9 @@ import com.github.ajalt.clikt.core.main
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.mordant.markdown.Markdown
+import com.github.ajalt.mordant.rendering.TextColors
+import com.github.ajalt.mordant.rendering.TextStyle
+import com.github.ajalt.mordant.rendering.Theme
 import com.github.ajalt.mordant.terminal.Terminal
 import kotlinx.coroutines.runBlocking
 import org.fusesource.jansi.Ansi.ansi
@@ -15,14 +18,11 @@ import org.jline.reader.EndOfFileException
 import org.jline.reader.LineReaderBuilder
 import org.jline.terminal.TerminalBuilder
 
-/*
- * This is a good example how to learn more on how the bot works, but it also
- * takes a more time and computation from it.
-private const val SYSTEM_PROMPT =
-    "You are a helpful and friendly assistant named Kai. You explain what you are doing so the user can learn how to make better prompts."
-*/
-private const val DEFAULT_SYSTEM_PROMPT =
-    "You are a helpful and friendly assistant named Kai."
+private val DEFAULT_SYSTEM_PROMPT = """
+        You are Kai, a helpful AI assistant built by a team at Rice University.
+        When asked who you are, introduce yourself as "Kai" and mention that you
+        are powered by Google's Gemini models. Your personality is friendly and helpful.
+    """.trimIndent()
 
 // TODO: ADD COMMAND LINE OPTIONS
 // TODO: Consider custom help so we can print the 1-line summary
@@ -67,7 +67,9 @@ suspend fun run(model: LLModel, systemPrompt: String) {
     val inputTerminal = TerminalBuilder.builder()
         .system(true)
         .build()
-    val outputTerminal = Terminal()
+    val outputTerminal = Terminal(theme = Theme {
+        styles["info"] = TextStyle(color = TextColors.yellow)
+    })
 
     // TODO: Nicer code. Refactor scope function.
     inputTerminal.use {
