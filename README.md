@@ -6,6 +6,7 @@ align="right" width="10%" height="auto"/>
 # Koog Tutorial
 
 Kick the tires on Koog.
+Kook is a Kotlin library for calling out to various public LLM APIs.
 
 ## Setup
 
