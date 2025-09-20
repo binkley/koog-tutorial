@@ -8,7 +8,7 @@ repositories {
 }
 
 dependencies {
-    implementation(libs.clickt)
+    implementation(libs.clikt)
     implementation(libs.mordant)
     implementation(libs.mordant.markdown)
     implementation(libs.jansi)
