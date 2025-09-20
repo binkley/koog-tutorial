@@ -2,7 +2,9 @@ import ai.koog.agents.core.agent.AIAgent
 import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Flash
 import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Pro
 import ai.koog.prompt.executor.llms.all.simpleGoogleAIExecutor
+import ai.koog.prompt.executor.llms.all.simpleOllamaAIExecutor
 import ai.koog.prompt.llm.LLModel
+import ai.koog.prompt.llm.OllamaModels.Meta.LLAMA_3_2
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.main
@@ -16,24 +18,31 @@ import org.fusesource.jansi.Ansi.ansi
 import org.jline.reader.EndOfFileException
 import org.jline.reader.LineReaderBuilder
 import org.jline.terminal.TerminalBuilder
+import java.net.URI
+import java.net.http.HttpClient.newHttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse.BodyHandlers
 
 private val DEFAULT_SYSTEM_PROMPT = """
         You are Kai, a helpful AI assistant built by a team at Rice University.
         When asked who you are, introduce yourself as "Kai" and mention that you
-        are powered by Google's Gemini models. Your personality is friendly and helpful.
+        are powered by a model the user choose from the command line.
+        Your personality is friendly and helpful.
     """.trimIndent()
 
 // TODO: ADD COMMAND LINE OPTIONS
 // TODO: Consider custom help so we can print the 1-line summary
 // private const val DESCRIPTION = "A simple chat bot powered by Koog and Gemini."
 // TODO: Show option default values in help
+// TODO: Help should list valid model options
+// TODO: How to deduplicate listing/branching on each model "nickname"?
 
 object Kai : CliktCommand("kai") {
     val model by option(
         "-M", "--model",
-        help = "Pick a Gemini model",
-    ).choice("flash", "pro")
-        .default("flash")
+        help = "Pick a model",
+    ).choice("gemini-flash", "gemini-pro", "ollama")
+        .default("gemini-flash")
 
     val systemPrompt by option(
         "-S", "--system-prompt",
@@ -91,14 +100,12 @@ private suspend fun repl(agent: AIAgent<String, String>) {
     agent.close()
 }
 
-// NOTE: Access the flag values only here -- if you cleverly move this
-//   logic up, you'll get a JVM `java.lang.ExceptionInInitializerError`.
-// TODO: When there are more models to consider, this becomes a factory
-//   function that also handles needed env vars (such as API key).
 private fun agentFor(model: String) = when (model.lowercase()) {
-    "flash" -> googleAgentFor(Gemini2_5Flash)
-    "pro" -> googleAgentFor(Gemini2_5Pro)
-    else -> throw RuntimeException("BUG: Unknown Gemini model: $model")
+    "gemini-flash" -> googleAgentFor(Gemini2_5Flash)
+    "gemini-pro" -> googleAgentFor(Gemini2_5Pro)
+    "ollama" -> ollamaAgentFor(LLAMA_3_2)
+    // TODO: Turn from exception to helpful error message with Clikt
+    else -> throw RuntimeException("BUG: Unknown model: $model")
 }
 
 private fun googleAgentFor(llmModel: LLModel): (String) -> AIAgent<String, String> {
@@ -116,12 +123,42 @@ private fun googleAgentFor(llmModel: LLModel): (String) -> AIAgent<String, Strin
     }
 }
 
+private fun ollamaAgentFor(llmModel: LLModel): (String) -> AIAgent<String, String> {
+    // TODO: Nicer error message with Clikt
+    if (!isOllamaRunning()) throw RuntimeException("Ollama is not running")
+
+    return { systemPrompt ->
+        AIAgent(
+            executor = simpleOllamaAIExecutor(),
+            llmModel = llmModel,
+            systemPrompt = systemPrompt
+        )
+    }
+}
+
 private fun apiKeyFromEnvironment(envVar: String) = (System.getenv(envVar)
     ?: throw PrintMessage(
         "kai: Missing $envVar environment variable".error,
         2,
         true
     ))
+
+private fun isOllamaRunning(): Boolean {
+    val client = newHttpClient()
+    val request = HttpRequest.newBuilder()
+        .uri(URI.create("http://localhost:11434"))
+        .GET()
+        .build()
+
+    return try {
+        val response = client.send(request, BodyHandlers.ofString())
+        // Check for a successful status code
+        200 == response.statusCode()
+    } catch (_: Exception) {
+        // Any exception (e.g., ConnectException) means the server is not running
+        false
+    }
+}
 
 val String.error
     get() = ansi().fgBrightRed().bold().a(this).reset().toString()

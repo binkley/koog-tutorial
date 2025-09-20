@@ -10,12 +10,16 @@ Koog is a Kotlin library for calling out to various public LLM APIs.
 
 ## Setup
 
+### Gemini
+
 Ensure a `GEMINI_API_KEY` from Google is exported in your shell environment.
 
 You API key reflects the rights your Google account has when you generate the
-key. For example, this project uses the "Gemini Flash" 2.5 model. To use the
-"Pro" model, you should generate an API key from your account if you have paid
-for that model.
+key. For example, this project uses the "Gemini Flash" 2.5 model as a default.
+
+### Ollama
+
+Install and run the "llama3.2:latest" model in Ollama.
 
 ## Try it
 
@@ -28,7 +32,7 @@ From the project root, run:
 
 A sample conversation on the command line:
 
-> 🤖 Koog Gemini agent is ready. Type 'exit' to quit.<br>
+> 🤖 Kai agent is ready. Type 'exit' to quit.<br>
 > \> Hi, Bob!<br>
 > 🤖: Hi there! It's great to hear from you!<br>
 > <br>
