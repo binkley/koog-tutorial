@@ -2,7 +2,6 @@ import ai.koog.agents.core.agent.AIAgent
 import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Flash
 import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Pro
 import ai.koog.prompt.executor.llms.all.simpleGoogleAIExecutor
-import ai.koog.prompt.llm.LLModel
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.main
@@ -43,42 +42,17 @@ object Kai : CliktCommand("kai") {
         help = "Set the system prompt",
     ).default(DEFAULT_SYSTEM_PROMPT)
 
-    override fun run() = runBlocking {
-        // NOTE: Access the flag values only here -- if you cleverly move this
-        //   logic up, you'll get a JVM `java.lang.ExceptionInInitializerError`.
-        // TODO: When there are more models to consider, this becomes a factory
-        //   function that also handles needed env vars (such as API key).
-        val llmModel = when (model.lowercase()) {
-            "flash" -> Gemini2_5Flash
-            "pro" -> Gemini2_5Pro
-            else -> throw RuntimeException("BUG: Unknown Gemini model: $model")
-        }
-
-        run(llmModel, systemPrompt)
-    }
+    override fun run() = runBlocking { repl(agentFor(model)(systemPrompt)) }
 }
 
-fun main(args: Array<String>) = Kai.main(args)
-suspend fun run(llmModel: LLModel, systemPrompt: String) {
+fun main(args: Array<String>) {
     // Koog and Gemini like to be loquacious -- just show concerns and errors
     System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "WARN")
 
-    // TODO: Trying out different models (which will have diff env vars)
-    //   See SimplePromptExecutors in Koog, and map option name to executor
-    // TODO: How to check the API key is valid before saying we are ready?
-    val apiKey = (System.getenv("GEMINI_API_KEY")
-        ?: throw PrintMessage(
-            "kai: Missing GEMINI_API_KEY environment variable".error,
-            2,
-            true
-        ))
+    Kai.main(args)
+}
 
-    val agent = AIAgent(
-        executor = simpleGoogleAIExecutor(apiKey),
-        llmModel = llmModel,
-        systemPrompt = systemPrompt
-    )
-
+private suspend fun repl(agent: AIAgent<String, String>) {
     val inputTerminal = TerminalBuilder.builder()
         .system(true)
         .build()
@@ -114,6 +88,36 @@ suspend fun run(llmModel: LLModel, systemPrompt: String) {
     }
 
     agent.close()
+}
+
+private fun agentFor(model: String): (String) -> AIAgent<String, String> {
+    // NOTE: Access the flag values only here -- if you cleverly move this
+    //   logic up, you'll get a JVM `java.lang.ExceptionInInitializerError`.
+    // TODO: When there are more models to consider, this becomes a factory
+    //   function that also handles needed env vars (such as API key).
+    val llmModel = when (model.lowercase()) {
+        "flash" -> Gemini2_5Flash
+        "pro" -> Gemini2_5Pro
+        else -> throw RuntimeException("BUG: Unknown Gemini model: $model")
+    }
+
+    // TODO: Trying out different models (which will have diff env vars)
+    //   See SimplePromptExecutors in Koog, and map option name to executor
+    // TODO: How to check the API key is valid before saying we are ready?
+    val apiKey = (System.getenv("GEMINI_API_KEY")
+        ?: throw PrintMessage(
+            "kai: Missing GEMINI_API_KEY environment variable".error,
+            2,
+            true
+        ))
+
+    return { systemPrompt ->
+        AIAgent(
+            executor = simpleGoogleAIExecutor(apiKey),
+            llmModel = llmModel,
+            systemPrompt = systemPrompt
+        )
+    }
 }
 
 val String.error
