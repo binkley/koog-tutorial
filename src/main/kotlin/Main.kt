@@ -2,6 +2,7 @@ import ai.koog.agents.core.agent.AIAgent
 import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Flash
 import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Pro
 import ai.koog.prompt.executor.llms.all.simpleGoogleAIExecutor
+import ai.koog.prompt.llm.LLModel
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.main
@@ -9,9 +10,6 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.mordant.markdown.Markdown
-import com.github.ajalt.mordant.rendering.TextColors
-import com.github.ajalt.mordant.rendering.TextStyle
-import com.github.ajalt.mordant.rendering.Theme
 import com.github.ajalt.mordant.terminal.Terminal
 import kotlinx.coroutines.runBlocking
 import org.fusesource.jansi.Ansi.ansi
@@ -56,9 +54,12 @@ private suspend fun repl(agent: AIAgent<String, String>) {
     val inputTerminal = TerminalBuilder.builder()
         .system(true)
         .build()
-    val outputTerminal = Terminal(theme = Theme {
-        styles["info"] = TextStyle(color = TextColors.yellow)
-    })
+    val outputTerminal = Terminal()
+    // TODO: Figure out how to use Mordant themes correctly -- this code doesn't
+    //   colorize the whole output
+//    val outputTerminal = Terminal(theme = Theme {
+//        styles["info"] = TextStyle(color = TextColors.yellow)
+//    })
 
     // TODO: Nicer code. Refactor scope function.
     inputTerminal.use {
@@ -90,26 +91,21 @@ private suspend fun repl(agent: AIAgent<String, String>) {
     agent.close()
 }
 
-private fun agentFor(model: String): (String) -> AIAgent<String, String> {
-    // NOTE: Access the flag values only here -- if you cleverly move this
-    //   logic up, you'll get a JVM `java.lang.ExceptionInInitializerError`.
-    // TODO: When there are more models to consider, this becomes a factory
-    //   function that also handles needed env vars (such as API key).
-    val llmModel = when (model.lowercase()) {
-        "flash" -> Gemini2_5Flash
-        "pro" -> Gemini2_5Pro
-        else -> throw RuntimeException("BUG: Unknown Gemini model: $model")
-    }
+// NOTE: Access the flag values only here -- if you cleverly move this
+//   logic up, you'll get a JVM `java.lang.ExceptionInInitializerError`.
+// TODO: When there are more models to consider, this becomes a factory
+//   function that also handles needed env vars (such as API key).
+private fun agentFor(model: String) = when (model.lowercase()) {
+    "flash" -> googleAgentFor(Gemini2_5Flash)
+    "pro" -> googleAgentFor(Gemini2_5Pro)
+    else -> throw RuntimeException("BUG: Unknown Gemini model: $model")
+}
 
+private fun googleAgentFor(llmModel: LLModel): (String) -> AIAgent<String, String> {
     // TODO: Trying out different models (which will have diff env vars)
     //   See SimplePromptExecutors in Koog, and map option name to executor
     // TODO: How to check the API key is valid before saying we are ready?
-    val apiKey = (System.getenv("GEMINI_API_KEY")
-        ?: throw PrintMessage(
-            "kai: Missing GEMINI_API_KEY environment variable".error,
-            2,
-            true
-        ))
+    val apiKey = apiKeyFromEnvironment("GEMINI_API_KEY")
 
     return { systemPrompt ->
         AIAgent(
@@ -119,6 +115,13 @@ private fun agentFor(model: String): (String) -> AIAgent<String, String> {
         )
     }
 }
+
+private fun apiKeyFromEnvironment(envVar: String) = (System.getenv(envVar)
+    ?: throw PrintMessage(
+        "kai: Missing $envVar environment variable".error,
+        2,
+        true
+    ))
 
 val String.error
     get() = ansi().fgBrightRed().bold().a(this).reset().toString()
