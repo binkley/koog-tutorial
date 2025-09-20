@@ -1,3 +1,5 @@
+import SupportedAgent.Companion.agentFor
+import SupportedAgent.Companion.agentNicknames
 import ai.koog.agents.core.agent.AIAgent
 import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Flash
 import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Pro
@@ -25,21 +27,15 @@ import java.net.http.HttpClient.newHttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse.BodyHandlers
 
-private val DEFAULT_SYSTEM_PROMPT = """
-        You are Kai, a helpful AI assistant built by a team at Rice University.
-        When asked who you are, introduce yourself as "Kai" and mention that you
-        are powered by a model the user choose from the command line.
-        Your personality is friendly and helpful.
-    """.trimIndent()
+private const val DEFAULT_SYSTEM_PROMPT =
+    "You are Kai, an AI assistant. Your personality is friendly and helpful."
 
-// TODO: ADD COMMAND LINE OPTIONS
 // TODO: Consider custom help so we can print the 1-line summary
 // private const val DESCRIPTION = "A simple chat bot powered by Koog and Gemini."
 // TODO: How to deduplicate listing/branching on each model "nickname"?
 
 object Kai : CliktCommand("kai") {
     init {
-        // This block customizes the help output
         context {
             helpFormatter = {
                 MordantHelpFormatter(
@@ -50,10 +46,10 @@ object Kai : CliktCommand("kai") {
         }
     }
 
-    val model by option(
+    val nickname by option(
         "-M", "--model",
-        help = "Pick a model",
-    ).choice("gemini-flash", "gemini-pro", "ollama")
+        help = "Pick a model agent",
+    ).choice(*agentNicknames, ignoreCase = true)
         .default("gemini-flash")
 
     val systemPrompt by option(
@@ -61,20 +57,20 @@ object Kai : CliktCommand("kai") {
         help = "Set the system prompt",
     ).default(DEFAULT_SYSTEM_PROMPT)
 
-    override fun run() = runBlocking { repl(agentFor(model)(systemPrompt)) }
+    override fun run() = runBlocking {
+        repl(agentFor(nickname.lowercase(), systemPrompt))
+    }
 }
 
 fun main(args: Array<String>) {
-    // Koog and Gemini like to be loquacious -- just show concerns and errors
+    // Koog likes to be loquacious -- just show concerns and errors.
     System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "WARN")
 
     Kai.main(args)
 }
 
 private suspend fun repl(agent: AIAgent<String, String>) {
-    val inputTerminal = TerminalBuilder.builder()
-        .system(true)
-        .build()
+    val inputTerminal = TerminalBuilder.builder().system(true).build()
     val outputTerminal = Terminal()
     // TODO: Figure out how to use Mordant themes correctly -- this code doesn't
     //   colorize the whole output
@@ -85,11 +81,11 @@ private suspend fun repl(agent: AIAgent<String, String>) {
     // TODO: Nicer code. Refactor scope function.
     inputTerminal.use {
         inputTerminal.writer().run {
-            println("🤖 Kai is ready. Enter 'exit' to quit.".iSay)
-
             val reader = LineReaderBuilder.builder()
                 .terminal(inputTerminal)
                 .build()
+
+            println("🤖 Kai is ready. Enter 'exit' to quit.".iSay)
 
             while (true) {
                 val userInput = try {
@@ -112,66 +108,6 @@ private suspend fun repl(agent: AIAgent<String, String>) {
     agent.close()
 }
 
-private fun agentFor(model: String) = when (model.lowercase()) {
-    "gemini-flash" -> googleAgentFor(Gemini2_5Flash)
-    "gemini-pro" -> googleAgentFor(Gemini2_5Pro)
-    "ollama" -> ollamaAgentFor(LLAMA_3_2)
-    // TODO: Turn from exception to helpful error message with Clikt
-    else -> throw RuntimeException("BUG: Unknown model: $model")
-}
-
-private fun googleAgentFor(llmModel: LLModel): (String) -> AIAgent<String, String> {
-    // TODO: Trying out different models (which will have diff env vars)
-    //   See SimplePromptExecutors in Koog, and map option name to executor
-    // TODO: How to check the API key is valid before saying we are ready?
-    val apiKey = apiKeyFromEnvironment("GEMINI_API_KEY")
-
-    return { systemPrompt ->
-        AIAgent(
-            executor = simpleGoogleAIExecutor(apiKey),
-            llmModel = llmModel,
-            systemPrompt = systemPrompt
-        )
-    }
-}
-
-private fun ollamaAgentFor(llmModel: LLModel): (String) -> AIAgent<String, String> {
-    // TODO: Nicer error message with Clikt
-    if (!isOllamaRunning()) throw RuntimeException("Ollama is not running")
-
-    return { systemPrompt ->
-        AIAgent(
-            executor = simpleOllamaAIExecutor(),
-            llmModel = llmModel,
-            systemPrompt = systemPrompt
-        )
-    }
-}
-
-private fun apiKeyFromEnvironment(envVar: String) = (System.getenv(envVar)
-    ?: throw PrintMessage(
-        "kai: Missing $envVar environment variable".error,
-        2,
-        true
-    ))
-
-private fun isOllamaRunning(): Boolean {
-    val client = newHttpClient()
-    val request = HttpRequest.newBuilder()
-        .uri(URI.create("http://localhost:11434"))
-        .GET()
-        .build()
-
-    return try {
-        val response = client.send(request, BodyHandlers.ofString())
-        // Check for a successful status code
-        200 == response.statusCode()
-    } catch (_: Exception) {
-        // Any exception (e.g., ConnectException) means the server is not running
-        false
-    }
-}
-
 val String.error
     get() = ansi().fgBrightRed().bold().a(this).reset().toString()
 
@@ -180,3 +116,89 @@ val String.iSay
 
 val String.aiSays
     get() = ansi().fgYellow().a(this).reset().toString()
+
+sealed class SupportedAgent(
+    val llmModel: LLModel
+) {
+    abstract fun using(systemPrompt: String): AIAgent<String, String>
+
+    companion object {
+        private val models = mapOf(
+            "gemini-flash" to GeminiFlashAgent(),
+            "gemini-pro" to GeminiProAgent(),
+            "ollama" to OllamaAgent()
+        )
+
+        val agentNicknames = models.keys.sorted().toTypedArray()
+
+        @Throws(PrintMessage::class)
+        fun agentFor(nickname: String, systemPrompt: String) =
+            models[nickname]?.using(systemPrompt)
+                ?: throw PrintMessage(
+                    message = "Unknown agent nickname: $nickname".error,
+                    statusCode = 2,
+                    printError = true
+                )
+    }
+}
+
+abstract class GoogleAgent(llModel: LLModel) : SupportedAgent(llModel) {
+    override fun using(systemPrompt: String): AIAgent<String, String> {
+        val apiKey = requiredFromEnvironment("GEMINI_API_KEY")
+
+        return AIAgent(
+            executor = simpleGoogleAIExecutor(apiKey),
+            llmModel = llmModel,
+            systemPrompt = systemPrompt
+        )
+    }
+}
+
+class GeminiFlashAgent : GoogleAgent(Gemini2_5Flash)
+
+class GeminiProAgent : GoogleAgent(Gemini2_5Pro)
+
+class OllamaAgent : SupportedAgent(LLAMA_3_2) {
+    override fun using(systemPrompt: String): AIAgent<String, String> {
+        requireOllamaRunningLocally()
+
+        return AIAgent(
+            executor = simpleOllamaAIExecutor(),
+            llmModel = llmModel,
+            systemPrompt = systemPrompt
+        )
+    }
+}
+
+@Throws(PrintMessage::class)
+private fun requiredFromEnvironment(envVar: String) =
+    System.getenv(envVar) ?: throw PrintMessage(
+        message = "kai: Missing $envVar environment variable".error,
+        statusCode = 2,
+        printError = true
+    )
+
+@Throws(PrintMessage::class)
+private fun requireOllamaRunningLocally() {
+    val client = newHttpClient()
+    val request = HttpRequest.newBuilder()
+        .uri(URI.create("http://localhost:11434"))
+        .GET()
+        .build()
+
+    try {
+        val response = client.send(request, BodyHandlers.ofString())
+        if (200 == response.statusCode()) return
+        throw PrintMessage(
+            message = "kai: Ollama is sad: $response".error,
+            statusCode = 1,
+            printError = true
+        )
+    } catch (_: Exception) {
+        throw PrintMessage(
+            message = "kai: Is Ollama running locally?".error,
+            statusCode = 2,
+            printError = true
+        )
+    }
+}
