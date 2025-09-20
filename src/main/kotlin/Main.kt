@@ -74,11 +74,12 @@ private suspend fun repl(agent: AIAgent<String, String>) {
     val outputTerminal = Terminal()
     // TODO: Figure out how to use Mordant themes correctly -- this code doesn't
     //   colorize the whole output
-//    val outputTerminal = Terminal(theme = Theme {
-//        styles["info"] = TextStyle(color = TextColors.yellow)
-//    })
+    //    val outputTerminal = Terminal(theme = Theme {
+    //        styles["info"] = TextStyle(color = TextColors.yellow)
+    //    })
 
     // TODO: Nicer code. Refactor scope function.
+    // TODO: Can we combine terminal handling into one more readable place?
     inputTerminal.use {
         inputTerminal.writer().run {
             val reader = LineReaderBuilder.builder()
