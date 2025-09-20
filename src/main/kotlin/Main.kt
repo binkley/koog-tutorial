@@ -8,6 +8,7 @@ import ai.koog.prompt.executor.llms.all.simpleOllamaAIExecutor
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.llm.OllamaModels.Meta.LLAMA_3_2
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.main
@@ -30,10 +31,6 @@ import java.net.http.HttpResponse.BodyHandlers
 private const val DEFAULT_SYSTEM_PROMPT =
     "You are Kai, an AI assistant. Your personality is friendly and helpful."
 
-// TODO: Consider custom help so we can print the 1-line summary
-// private const val DESCRIPTION = "A simple chat bot powered by Koog and Gemini."
-// TODO: How to deduplicate listing/branching on each model "nickname"?
-
 object Kai : CliktCommand("kai") {
     init {
         context {
@@ -45,6 +42,11 @@ object Kai : CliktCommand("kai") {
             }
         }
     }
+
+    override fun help(context: Context) =
+        """
+        A rich command-line chat bot powered by Koog and JLine.
+        """.trimIndent()
 
     val nickname by option(
         "-M", "--model",
@@ -80,6 +82,13 @@ private suspend fun repl(agent: AIAgent<String, String>) {
 
     // TODO: Nicer code. Refactor scope function.
     // TODO: Can we combine terminal handling into one more readable place?
+
+    // TODO: Add history so users can pick up previous sessions:
+    //   - History for prompt entry -- JLine
+    //   - History for previous AI sessions -- Koog
+    //   There is no real "state" to preserve -- see how public AI chat bots
+    //     rely on browser to save this -- but they pick up when fed back
+    //     previous context
     inputTerminal.use {
         inputTerminal.writer().run {
             val reader = LineReaderBuilder.builder()
