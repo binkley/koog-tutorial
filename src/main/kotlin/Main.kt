@@ -7,7 +7,9 @@ import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.llm.OllamaModels.Meta.LLAMA_3_2
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.PrintMessage
+import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.main
+import com.github.ajalt.clikt.output.MordantHelpFormatter
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.choice
@@ -38,6 +40,18 @@ private val DEFAULT_SYSTEM_PROMPT = """
 // TODO: How to deduplicate listing/branching on each model "nickname"?
 
 object Kai : CliktCommand("kai") {
+    init {
+        // This block customizes the help output
+        context {
+            helpFormatter = {
+                MordantHelpFormatter(
+                    it,
+                    showDefaultValues = true,
+                )
+            }
+        }
+    }
+
     val model by option(
         "-M", "--model",
         help = "Pick a model",
