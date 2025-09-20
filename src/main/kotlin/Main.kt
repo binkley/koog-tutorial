@@ -16,6 +16,7 @@ import com.github.ajalt.clikt.output.MordantHelpFormatter
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.choice
+import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.mordant.markdown.Markdown
 import com.github.ajalt.mordant.terminal.Terminal
 import kotlinx.coroutines.runBlocking
@@ -23,13 +24,18 @@ import org.fusesource.jansi.Ansi.ansi
 import org.jline.reader.EndOfFileException
 import org.jline.reader.LineReaderBuilder
 import org.jline.terminal.TerminalBuilder
+import java.io.File
 import java.net.URI
 import java.net.http.HttpClient.newHttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse.BodyHandlers
+import java.nio.file.Paths
 
-private const val DEFAULT_SYSTEM_PROMPT =
+const val DEFAULT_SYSTEM_PROMPT =
     "You are Kai, an AI assistant. Your personality is friendly and helpful."
+
+val DEFAULT_HISTORY_FILE =
+    Paths.get(System.getProperty("user.home"), ".kai_history").toFile()
 
 object Kai : CliktCommand("kai") {
     init {
@@ -48,21 +54,33 @@ object Kai : CliktCommand("kai") {
         A rich command-line chat bot powered by Koog and JLine.
         """.trimIndent()
 
-    val nickname by option(
-        "-M", "--model",
-        help = "Pick a model agent",
+    val agentNickname by option(
+        "--agent-nickname", "-M",
+        help = "Pick a model agent"
     ).choice(*agentNicknames, ignoreCase = true)
         .default("gemini-flash")
 
+    val historyFile by option(
+        "--history-file", "-H",
+        help = "Set the history file for previous prompts"
+    )
+        .file()
+        .default(DEFAULT_HISTORY_FILE)
+
     val systemPrompt by option(
-        "-S", "--system-prompt",
-        help = "Set the system prompt",
+        "--system-prompt", "-S",
+        help = "Set the system prompt"
     ).default(DEFAULT_SYSTEM_PROMPT)
 
     override fun run() = runBlocking {
-        repl(agentFor(nickname.lowercase(), systemPrompt))
+        repl(agentFor(agentNickname.lowercase(), systemPrompt))
     }
 }
+
+data class UserOptions(
+    val historyFile: File,
+    val systemPrompt: String
+)
 
 fun main(args: Array<String>) {
     // Koog likes to be loquacious -- just show concerns and errors.
