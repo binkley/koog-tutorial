@@ -35,8 +35,6 @@ private val DEFAULT_SYSTEM_PROMPT = """
 // TODO: ADD COMMAND LINE OPTIONS
 // TODO: Consider custom help so we can print the 1-line summary
 // private const val DESCRIPTION = "A simple chat bot powered by Koog and Gemini."
-// TODO: Show option default values in help
-// TODO: Help should list valid model options
 // TODO: How to deduplicate listing/branching on each model "nickname"?
 
 object Kai : CliktCommand("kai") {
