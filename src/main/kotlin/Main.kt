@@ -1,6 +1,8 @@
 import SupportedAgent.Companion.agentFor
 import SupportedAgent.Companion.agentNicknames
+import UserInteraction.Companion.pickUserInteraction
 import ai.koog.agents.core.agent.AIAgent
+import ai.koog.agents.utils.use
 import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Flash
 import ai.koog.prompt.executor.clients.google.GoogleModels.Gemini2_5Pro
 import ai.koog.prompt.executor.llms.all.simpleGoogleAIExecutor
@@ -18,24 +20,33 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.mordant.markdown.Markdown
-import com.github.ajalt.mordant.terminal.Terminal
 import kotlinx.coroutines.runBlocking
 import org.fusesource.jansi.Ansi.ansi
 import org.jline.reader.EndOfFileException
+import org.jline.reader.LineReader.HISTORY_FILE
 import org.jline.reader.LineReaderBuilder
+import org.jline.reader.UserInterruptException
 import org.jline.terminal.TerminalBuilder
+import java.io.Closeable
 import java.io.File
 import java.net.URI
 import java.net.http.HttpClient.newHttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse.BodyHandlers
 import java.nio.file.Paths
+import kotlin.system.exitProcess
+import com.github.ajalt.mordant.terminal.Terminal as OutputTerminal
 
 const val DEFAULT_SYSTEM_PROMPT =
     "You are Kai, an AI assistant. Your personality is friendly and helpful."
 
-val DEFAULT_HISTORY_FILE =
-    Paths.get(System.getProperty("user.home"), ".kai_history").toFile()
+val DEFAULT_HISTORY_FILE: File =
+    Paths.get(System.getProperty("user.home"), ".kai_history")
+        .toFile()
+
+private const val DEFAULT_OLLAMA_ENDPOINT = "http://localhost:11434"
+
+private const val INTERRUPTED_EXIT_CODE = 130 // Following POSIX/Linux standards
 
 object Kai : CliktCommand("kai") {
     init {
@@ -49,8 +60,7 @@ object Kai : CliktCommand("kai") {
         }
     }
 
-    override fun help(context: Context) =
-        """
+    override fun help(context: Context) = """
         A rich command-line chat bot powered by Koog and JLine.
         """.trimIndent()
 
@@ -62,18 +72,21 @@ object Kai : CliktCommand("kai") {
 
     val historyFile by option(
         "--history-file", "-H",
-        help = "Set the history file for previous prompts"
-    )
-        .file()
+        help = "Set the history file for previous user-entered prompts"
+    ).file()
         .default(DEFAULT_HISTORY_FILE)
 
     val systemPrompt by option(
         "--system-prompt", "-S",
         help = "Set the system prompt"
-    ).default(DEFAULT_SYSTEM_PROMPT)
+    )
+        .default(DEFAULT_SYSTEM_PROMPT)
 
     override fun run() = runBlocking {
-        repl(agentFor(agentNickname.lowercase(), systemPrompt))
+        repl(
+            agent = agentFor(agentNickname.lowercase())(systemPrompt),
+            userOptions = UserOptions(historyFile, systemPrompt)
+        )
     }
 }
 
@@ -89,61 +102,32 @@ fun main(args: Array<String>) {
     Kai.main(args)
 }
 
-private suspend fun repl(agent: AIAgent<String, String>) {
-    val inputTerminal = TerminalBuilder.builder().system(true).build()
-    val outputTerminal = Terminal()
-    // TODO: Figure out how to use Mordant themes correctly -- this code doesn't
-    //   colorize the whole output
-    //    val outputTerminal = Terminal(theme = Theme {
-    //        styles["info"] = TextStyle(color = TextColors.yellow)
-    //    })
-
-    // TODO: Nicer code. Refactor scope function.
-    // TODO: Can we combine terminal handling into one more readable place?
-
-    // TODO: Add history so users can pick up previous sessions:
-    //   - History for prompt entry -- JLine
-    //   - History for previous AI sessions -- Koog
-    //   There is no real "state" to preserve -- see how public AI chat bots
-    //     rely on browser to save this -- but they pick up when fed back
-    //     previous context
-    inputTerminal.use {
-        inputTerminal.writer().run {
-            val reader = LineReaderBuilder.builder()
-                .terminal(inputTerminal)
-                .build()
-
-            println("🤖 Kai is ready. Enter 'exit' to quit.".iSay)
+private suspend fun repl(
+    agent: AIAgent<String, String>,
+    userOptions: UserOptions
+) {
+    agent.use {
+        pickUserInteraction(userOptions).use {
+            it.printFromKai("🤖 Kai is ready. Enter 'exit' to quit.")
 
             while (true) {
                 val userInput = try {
-                    reader.readLine("> ".iSay) ?: break
-                } catch (_: EndOfFileException) {
-                    "exit"
+                    it.readFromUser("> ") ?: break
+                } catch (_: UserInterruptException) {
+                    // User or script is terminating NOW -- do not be friendly
+                    exitProcess(INTERRUPTED_EXIT_CODE)
                 }.trim()
 
                 if (userInput.equals("exit", ignoreCase = true)) {
-                    println("Goodbye! 👋".iSay)
+                    it.printFromKai("Goodbye! 👋")
                     break
                 }
 
-                val response = agent.run(userInput)
-                outputTerminal.println(Markdown("🤖: $response".aiSays))
+                it.printFromLlm(agent.run(userInput))
             }
         }
     }
-
-    agent.close()
 }
-
-val String.error
-    get() = ansi().fgBrightRed().bold().a(this).reset().toString()
-
-val String.iSay
-    get() = ansi().fgBrightGreen().bold().a(this).reset().toString()
-
-val String.aiSays
-    get() = ansi().fgYellow().a(this).reset().toString()
 
 sealed class SupportedAgent(
     val llmModel: LLModel
@@ -160,13 +144,17 @@ sealed class SupportedAgent(
         val agentNicknames = models.keys.sorted().toTypedArray()
 
         @Throws(PrintMessage::class)
-        fun agentFor(nickname: String, systemPrompt: String) =
-            models[nickname]?.using(systemPrompt)
-                ?: throw PrintMessage(
-                    message = "Unknown agent nickname: $nickname".error,
-                    statusCode = 2,
-                    printError = true
-                )
+        fun agentFor(nickname: String): (String) -> AIAgent<String, String> {
+            val agent = models[nickname] ?: throw PrintMessage(
+                message = "Unknown agent nickname: $nickname".error,
+                statusCode = 2,
+                printError = true
+            )
+
+            return { systemPrompt ->
+                agent.using(systemPrompt)
+            }
+        }
     }
 }
 
@@ -210,7 +198,7 @@ private fun requiredFromEnvironment(envVar: String) =
 private fun requireOllamaRunningLocally() {
     val client = newHttpClient()
     val request = HttpRequest.newBuilder()
-        .uri(URI.create("http://localhost:11434"))
+        .uri(URI.create(DEFAULT_OLLAMA_ENDPOINT))
         .GET()
         .build()
 
@@ -230,3 +218,86 @@ private fun requireOllamaRunningLocally() {
         )
     }
 }
+
+sealed interface UserInteraction : Closeable {
+    fun raiseError(message: String, exitCode: Int): Nothing
+    fun printFromKai(message: String)
+    fun readFromUser(prompt: String): String?
+    fun printFromLlm(message: String)
+
+    companion object {
+        fun pickUserInteraction(userOptions: UserOptions): UserInteraction {
+            val hasTerminal = null != System.console()
+            return when (hasTerminal) {
+                true -> ConsoleInteraction(userOptions)
+                else -> StreamInteraction()
+            }
+        }
+    }
+}
+
+class ConsoleInteraction(userOptions: UserOptions) : UserInteraction {
+    private val inputTerminal = TerminalBuilder.builder()
+        .system(true)
+        .build()
+
+    private val reader = LineReaderBuilder.builder()
+        .variable(HISTORY_FILE, userOptions.historyFile)
+        .terminal(inputTerminal)
+        .build()
+
+    // TODO: Figure out how to use Mordant themes correctly -- this code doesn't
+    //   colorize the whole output
+    //    val outputTerminal = OutputTerminal(theme = Theme {
+    //        styles["info"] = TextStyle(color = TextColors.yellow)
+    //    })
+    private val outputTerminal = OutputTerminal()
+
+    override fun raiseError(message: String, exitCode: Int) =
+        throw PrintMessage(
+            message = message.error,
+            statusCode = exitCode,
+            printError = 0 == exitCode
+        )
+
+    override fun printFromKai(message: String) =
+        outputTerminal.println(message.iSay)
+
+    override fun readFromUser(prompt: String) = try {
+        reader.readLine(prompt.iSay)
+    } catch (_: EndOfFileException) {
+        null
+    }
+
+    override fun printFromLlm(message: String) =
+        outputTerminal.println(Markdown("🤖: $message".aiSays))
+
+    override fun close() = inputTerminal.close()
+}
+
+class StreamInteraction : UserInteraction {
+    override fun raiseError(message: String, exitCode: Int): Nothing {
+        System.err.println("kai: $message")
+        exitProcess(exitCode)
+    }
+
+    override fun printFromKai(message: String) = Unit
+
+    override fun readFromUser(prompt: String) =
+        // TODO: Return `null` and not empty string on empty input (/dev/null)
+        generateSequence(::readlnOrNull).joinToString("\n")
+
+    override fun printFromLlm(message: String) = println(message)
+
+    override fun close() = Unit
+}
+
+val String.error
+    get() = ansi().fgBrightRed().bold().a(this).reset().toString()
+
+val String.iSay
+    get() = ansi().fgBrightGreen().bold().a(this).reset().toString()
+
+val String.aiSays
+    get() = ansi().fgYellow().a(this).reset().toString()
+
