@@ -246,11 +246,6 @@ class ConsoleInteraction(userOptions: UserOptions) : UserInteraction {
         .terminal(inputTerminal)
         .build()
 
-    // TODO: Figure out how to use Mordant themes correctly -- this code doesn't
-    //   colorize the whole output
-    //    val outputTerminal = OutputTerminal(theme = Theme {
-    //        styles["info"] = TextStyle(color = TextColors.yellow)
-    //    })
     private val outputTerminal = OutputTerminal()
 
     override fun raiseError(message: String, exitCode: Int) =
@@ -302,4 +297,3 @@ val String.iSay
 
 val String.aiSays
     get() = ansi().fgYellow().a(this).reset().toString()
-
