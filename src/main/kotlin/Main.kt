@@ -283,9 +283,11 @@ class StreamInteraction : UserInteraction {
 
     override fun printFromKai(message: String) = Unit
 
-    override fun readFromUser(prompt: String) =
-        // TODO: Return `null` and not empty string on empty input (/dev/null)
-        generateSequence(::readlnOrNull).joinToString("\n")
+    override fun readFromUser(prompt: String): String? {
+        val lines = generateSequence(::readlnOrNull).toList()
+        return if (lines.isEmpty()) null
+        else lines.joinToString("\n")
+    }
 
     override fun printFromLlm(message: String) = println(message)
 
