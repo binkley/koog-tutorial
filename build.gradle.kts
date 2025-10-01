@@ -20,6 +20,7 @@ dependencies {
 application {
     mainClass.set("MainKt")
 }
+
 tasks.wrapper {
     distributionType = Wrapper.DistributionType.ALL
 }
