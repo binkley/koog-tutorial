@@ -14,6 +14,9 @@ dependencies {
     implementation(libs.jansi)
     implementation(libs.jline)
     implementation(libs.koog)
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.websockets)
     runtimeOnly(libs.slf4j.simple)
 }
 

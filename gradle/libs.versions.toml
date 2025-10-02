@@ -3,6 +3,7 @@ clikt = "5.0.3"
 jansi = "2.4.2"
 jline = "3.30.6"
 koog = "0.4.1"
+ktor = "3.3.0"
 mordant = "3.0.2"
 slf4j = "2.0.17"
 
@@ -11,6 +12,9 @@ clikt = { group = "com.github.ajalt.clikt", name = "clikt", version.ref = "clikt
 jansi = { group = "org.fusesource.jansi", name = "jansi", version.ref = "jansi" }
 jline = { group = "org.jline", name = "jline", version.ref = "jline" }
 koog = { group = "ai.koog", name = "koog-agents", version.ref = "koog" }
+ktor-server-core = { group = "io.ktor", name = "ktor-server-core", version.ref = "ktor" }
+ktor-server-netty = { group = "io.ktor", name = "ktor-server-netty", version.ref = "ktor" }
+ktor-server-websockets = { group = "io.ktor", name = "ktor-server-websockets", version.ref = "ktor" }
 mordant = { group = "com.github.ajalt.mordant", name = "mordant", version.ref = "mordant" }
 mordant-markdown = { group = "com.github.ajalt.mordant", name = "mordant-markdown", version.ref = "mordant" }
 slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version.ref = "slf4j" }
